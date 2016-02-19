@@ -1,14 +1,12 @@
 # Ubuntu 14.04 LTS
 # Oracle Java 1.8.0_11 64 bit
 # Maven 3.2.2
-# Jenkins 1.574
 # git 1.9.1
-# Nano 2.2.6-1ubuntu1
 
 # extend the most recent long term support Ubuntu version
-FROM ubuntu:14.04
+FROM phusion/baseimage:0.9.17
 
-MAINTAINER Stephen L. Reed (http://texai.org, stephenreed@yahoo.com)
+MAINTAINER Hiroki Gota
 
 # this is a non-interactive automated build - avoid some warning messages
 ENV DEBIAN_FRONTEND noninteractive
@@ -26,17 +24,17 @@ RUN wget --no-verbose -O /tmp/apache-maven-3.2.2.tar.gz http://archive.apache.or
 RUN echo "87e5cc81bc4ab9b83986b3e77e6b3095 /tmp/apache-maven-3.2.2.tar.gz" | md5sum -c
 
 # install maven
+ENV MAVEN apache-maven-3.2.2
 RUN tar xzf /tmp/apache-maven-3.2.2.tar.gz -C /opt/
 RUN ln -s /opt/apache-maven-3.2.2 /opt/maven
 RUN ln -s /opt/maven/bin/mvn /usr/local/bin
 RUN rm -f /tmp/apache-maven-3.2.2.tar.gz
 ENV MAVEN_HOME /opt/maven
 
+ADD conf/settings.xml /opy/$MAVEN/
+
 # install git
 RUN apt-get install -y git
-
-# install nano
-RUN apt-get install -y nano
 
 # remove download archive files
 RUN apt-get clean
@@ -57,15 +55,26 @@ ENV PATH $JAVA_HOME/bin:$PATH
 # configure symbolic links for the java and javac executables
 RUN update-alternatives --install /usr/bin/java java $JAVA_HOME/bin/java 20000 && update-alternatives --install /usr/bin/javac javac $JAVA_HOME/bin/javac 20000
 
-# copy jenkins war file to the container
-ADD http://mirrors.jenkins-ci.org/war/1.574/jenkins.war /opt/jenkins.war
-RUN chmod 644 /opt/jenkins.war
-ENV JENKINS_HOME /jenkins
+# download tomcat
+ENV TOMCAT_VERSION=7.0.65
+RUN wget --no-verbose -O /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz http://ftp.wayne.edu/apache/tomcat/tomcat-7/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz
+
+# install tomcat
+RUN tar xzf /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz -C /opt/
+
+ENV CATALINA_HOME /opt/apache-tomcat-$TOMCAT_VERSION
+RUN mkdir -p ADD /$CATALINA_HOME/conf/Catalina/localhost
+ADD ../tomcat/tomcat-users.xml  /$CATALINA_HOME/conf/
+ADD ../tomcat/ROOT.xml  /$CATALINA_HOME/conf/Catalina/localhost
+
+
+RUN cd/api && mvn -Pprod install
+
+CMD $CATALINA_HOME/bin/startup.sh
 
 # configure the container to run jenkins, mapping container port 8080 to that host port
-ENTRYPOINT ["java", "-jar", "/opt/jenkins.war"]
-EXPOSE 8080
-
-CMD [""]
+#ENTRYPOINT ["java", "-jar", "/opt/jenkins.war"]
+#EXPOSE 8080
+#CMD [""]
 
 
